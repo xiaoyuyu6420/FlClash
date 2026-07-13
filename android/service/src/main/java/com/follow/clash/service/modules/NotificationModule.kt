@@ -22,8 +22,6 @@ import com.follow.clash.service.State
 import com.follow.clash.service.models.NotificationParams
 import com.follow.clash.service.models.getSpeedTrafficText
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -43,10 +41,11 @@ val NotificationParams.extended: ExtendedNotificationParams
         title, stopText, onlyStatisticsProxy, Core.getSpeedTrafficText(onlyStatisticsProxy)
     )
 
-class NotificationModule(private val service: Service) : Module() {
-    private val scope = CoroutineScope(Dispatchers.Default)
-
-    override fun onInstall() {
+internal class NotificationModule(
+    private val service: Service,
+    private val scope: CoroutineScope,
+) : ServiceModule {
+    override fun start() {
         scope.launch {
             val screenFlow = service.receiveBroadcastFlow {
                 addAction(Intent.ACTION_SCREEN_ON)
@@ -118,12 +117,11 @@ class NotificationModule(private val service: Service) : Module() {
             })
     }
 
-    override fun onUninstall() {
+    override fun stop() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             service.stopForeground(STOP_FOREGROUND_REMOVE)
         } else {
             service.stopForeground(true)
         }
-        scope.cancel()
     }
 }

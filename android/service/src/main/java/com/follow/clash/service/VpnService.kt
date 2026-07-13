@@ -6,6 +6,8 @@ import android.net.ProxyInfo
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
+import android.os.Parcel
+import android.os.RemoteException
 import android.util.Log
 import androidx.core.content.getSystemService
 import com.follow.clash.common.AccessControlMode
@@ -15,26 +17,12 @@ import com.follow.clash.service.models.VpnOptions
 import com.follow.clash.service.models.getIpv4RouteAddress
 import com.follow.clash.service.models.getIpv6RouteAddress
 import com.follow.clash.service.models.toCIDR
-import com.follow.clash.service.modules.NetworkObserveModule
-import com.follow.clash.service.modules.NotificationModule
-import com.follow.clash.service.modules.SuspendModule
-import com.follow.clash.service.modules.moduleLoader
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import com.follow.clash.service.modules.ServiceModules
 import java.net.InetSocketAddress
 import android.net.VpnService as SystemVpnService
 
-class VpnService : SystemVpnService(), IBaseService,
-    CoroutineScope by CoroutineScope(Dispatchers.Default) {
-
-    private val self: VpnService
-        get() = this
-
-    private val loader = moduleLoader {
-        install(NetworkObserveModule(self))
-        install(NotificationModule(self))
-        install(SuspendModule(self))
-    }
+class VpnService : SystemVpnService(), IBaseService {
+    private val modules = ServiceModules(this)
 
     override fun onCreate() {
         super.onCreate()
@@ -42,6 +30,7 @@ class VpnService : SystemVpnService(), IBaseService,
     }
 
     override fun onDestroy() {
+        modules.stop()
         handleDestroy()
         super.onDestroy()
     }
@@ -233,7 +222,7 @@ class VpnService : SystemVpnService(), IBaseService,
 
     override fun start() {
         try {
-            loader.load()
+            modules.start()
             State.options?.let {
                 handleStart(it)
             }
@@ -243,7 +232,7 @@ class VpnService : SystemVpnService(), IBaseService,
     }
 
     override fun stop() {
-        loader.cancel()
+        modules.stop()
         Core.stopTun()
         stopSelf()
     }

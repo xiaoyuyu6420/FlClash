@@ -7,16 +7,15 @@ import androidx.core.content.getSystemService
 import com.follow.clash.common.receiveBroadcastFlow
 import com.follow.clash.core.Core
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 
 
-class SuspendModule(private val service: Service) : Module() {
-    private val scope = CoroutineScope(Dispatchers.Default)
-
+internal class SuspendModule(
+    private val service: Service,
+    private val scope: CoroutineScope,
+) : ServiceModule {
     private fun isScreenOn(): Boolean {
         val pm = service.getSystemService<PowerManager>()
         return when (pm != null) {
@@ -38,7 +37,7 @@ class SuspendModule(private val service: Service) : Module() {
         Core.suspended(isDeviceIdleMode)
     }
 
-    override fun onInstall() {
+    override fun start() {
         scope.launch {
             val screenFlow = service.receiveBroadcastFlow {
                 addAction(Intent.ACTION_SCREEN_ON)
@@ -50,12 +49,8 @@ class SuspendModule(private val service: Service) : Module() {
             }
 
             screenFlow.collect {
-                    onUpdate(it)
-                }
+                onUpdate(it)
+            }
         }
-    }
-
-    override fun onUninstall() {
-        scope.cancel()
     }
 }

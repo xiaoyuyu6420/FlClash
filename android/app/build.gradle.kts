@@ -97,6 +97,7 @@ flutter {
 dependencies {
     implementation(project(":service"))
     implementation(project(":common"))
+    implementation(project(":core"))
     implementation(libs.core.splashscreen)
     implementation(libs.gson)
     implementation(libs.smali.dexlib2) {

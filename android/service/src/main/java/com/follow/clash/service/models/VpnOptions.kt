@@ -74,7 +74,7 @@ fun String.toCIDR(): CIDR {
     val address = InetAddress.getByName(ipAddress)
 
     val maxPrefix = if (address.address.size == 4) 32 else 128
-    if (prefixLength < 0 || prefixLength > maxPrefix) {
+    if (prefixLength !in 0..maxPrefix) {
         throw IllegalArgumentException("Invalid prefix length for IP version")
     }
 

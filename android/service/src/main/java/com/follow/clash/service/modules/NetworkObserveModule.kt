@@ -22,7 +22,7 @@ private data class NetworkInfo(
     fun isAvailable(): Boolean = losingMs < System.currentTimeMillis()
 }
 
-class NetworkObserveModule(private val service: Service) : Module() {
+internal class NetworkObserveModule(private val service: Service) : ServiceModule {
 
     private val networkInfos = ConcurrentHashMap<Network, NetworkInfo>()
     private val connectivity by lazy {
@@ -69,7 +69,7 @@ class NetworkObserveModule(private val service: Service) : Module() {
     }
 
 
-    override fun onInstall() {
+    override fun start() {
         onUpdateNetwork()
         connectivity?.registerNetworkCallback(request, callback)
     }
@@ -111,7 +111,7 @@ class NetworkObserveModule(private val service: Service) : Module() {
 //        }
     }
 
-    override fun onUninstall() {
+    override fun stop() {
         connectivity?.unregisterNetworkCallback(callback)
         networkInfos.clear()
         onUpdateNetwork()

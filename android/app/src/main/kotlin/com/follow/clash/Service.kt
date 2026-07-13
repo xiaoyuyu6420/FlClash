@@ -28,7 +28,7 @@ object Service {
         intent = null
     }
 
-    suspend fun invokeAction(data: String, cb: ((result: String) -> Unit)?): Result<Unit> {
+    fun invokeAction(data: String, cb: ((result: String) -> Unit)?): Result<Unit> {
         return runCatching {
             Core.invokeAction(data) { result ->
                 cb?.invoke(result.orEmpty())
@@ -36,7 +36,7 @@ object Service {
         }
     }
 
-    suspend fun quickSetup(
+    fun quickSetup(
         initParamsString: String,
         setupParamsString: String,
         onStarted: (() -> Unit)?,
@@ -50,7 +50,7 @@ object Service {
         }
     }
 
-    suspend fun setEventListener(cb: ((result: String?) -> Unit)?): Result<Unit> {
+    fun setEventListener(cb: ((result: String?) -> Unit)?): Result<Unit> {
         return runCatching {
             Core.callSetEventListener(cb)
         }
@@ -61,7 +61,7 @@ object Service {
         return Result.success(Unit)
     }
 
-    suspend fun setCrashlytics(enable: Boolean): Result<Unit> {
+    fun setCrashlytics(enable: Boolean): Result<Unit> {
         GlobalState.setCrashlytics(enable)
         return Result.success(Unit)
     }
@@ -107,7 +107,7 @@ object Service {
         }
     }
 
-    suspend fun getRunTime(): Long = runTime
+    fun getRunTime(): Long = runTime
 
     private fun handleServiceDisconnected(message: String) {
         GlobalState.log("Background service disconnected: $message")
