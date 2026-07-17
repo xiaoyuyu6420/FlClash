@@ -97,7 +97,17 @@ class VpnService : SystemVpnService(), ManagedService {
             get() = this@VpnService
     }
 
-    override fun onBind(intent: Intent): IBinder = binder
+    override fun onBind(intent: Intent): IBinder? =
+        if (intent.action == SystemVpnService.SERVICE_INTERFACE) {
+            super.onBind(intent)
+        } else {
+            binder
+        }
+
+    override fun onRevoke() {
+        stop()
+        notifyDestroyed()
+    }
 
     private fun handleStart(options: VpnOptions) {
         val fd = with(Builder()) {
