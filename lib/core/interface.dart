@@ -75,6 +75,10 @@ mixin CoreInterface {
 }
 
 abstract class CoreHandlerInterface with CoreInterface {
+  int _actionId = 0;
+
+  String get nextActionId => '${++_actionId}';
+
   Completer get completer;
 
   FutureOr<bool> destroy();
@@ -123,7 +127,7 @@ abstract class CoreHandlerInterface with CoreInterface {
   Future<bool> init(InitParams params) async {
     return await _invoke<bool>(
           method: ActionMethod.initClash,
-          data: json.encode(params),
+          data: params.toJson(),
         ) ??
         false;
   }
@@ -154,7 +158,7 @@ abstract class CoreHandlerInterface with CoreInterface {
   Future<String> updateConfig(UpdateParams updateParams) async {
     return await _invoke<String>(
           method: ActionMethod.updateConfig,
-          data: json.encode(updateParams),
+          data: updateParams.toJson(),
         ) ??
         '';
   }
@@ -169,7 +173,7 @@ abstract class CoreHandlerInterface with CoreInterface {
   Future<String> setupConfig(SetupParams setupParams) async {
     return await _invoke<String>(
           method: ActionMethod.setupConfig,
-          data: json.encode(setupParams),
+          data: setupParams.toJson(),
         ) ??
         '';
   }
@@ -193,7 +197,7 @@ abstract class CoreHandlerInterface with CoreInterface {
   Future<String> changeProxy(ChangeProxyParams changeProxyParams) async {
     return await _invoke<String>(
           method: ActionMethod.changeProxy,
-          data: json.encode(changeProxyParams),
+          data: changeProxyParams.toJson(),
         ) ??
         '';
   }
@@ -229,7 +233,7 @@ abstract class CoreHandlerInterface with CoreInterface {
   }) async {
     return await _invoke<String>(
           method: ActionMethod.sideLoadExternalProvider,
-          data: json.encode({'providerName': providerName, 'data': data}),
+          data: {'providerName': providerName, 'data': data},
         ) ??
         '';
   }
@@ -325,7 +329,7 @@ abstract class CoreHandlerInterface with CoreInterface {
     };
     return await _invoke<String>(
           method: ActionMethod.asyncTestDelay,
-          data: json.encode(delayParams),
+          data: delayParams,
           timeout: const Duration(seconds: 6),
         ) ??
         json.encode(Delay(name: proxyName, value: -1, url: url));

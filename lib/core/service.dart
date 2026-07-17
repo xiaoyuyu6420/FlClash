@@ -34,10 +34,12 @@ class CoreService extends CoreHandlerInterface {
   }
 
   Future<void> handleResult(ActionResult result) async {
-    final completer = _callbackCompleterMap[result.id];
+    final completer = _callbackCompleterMap.remove(result.id);
     final data = await parasResult(result);
     if (result.id?.isEmpty == true) {
-      coreEventManager.sendEvent(CoreEvent.fromJson(result.data));
+      for (final event in coreEventsFromData(result.data)) {
+        coreEventManager.sendEvent(event);
+      }
     }
     if (completer?.isCompleted == true) {
       return;
@@ -163,7 +165,7 @@ class CoreService extends CoreHandlerInterface {
     dynamic data,
     Duration? timeout,
   }) async {
-    final id = '${method.name}#${utils.id}';
+    final id = nextActionId;
     _callbackCompleterMap[id] = Completer<T?>();
     sendMessage(json.encode(Action(id: id, method: method, data: data)));
     return (_callbackCompleterMap[id] as Completer<T?>).future.withTimeout(

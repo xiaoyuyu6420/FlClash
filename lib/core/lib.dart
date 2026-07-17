@@ -71,7 +71,7 @@ class CoreLib extends CoreHandlerInterface {
     dynamic data,
     Duration? timeout,
   }) async {
-    final id = '${method.name}#${utils.id}';
+    final id = nextActionId;
     final result = await service
         ?.invokeAction(Action(id: id, method: method, data: data))
         .withTimeout(onTimeout: () => null);

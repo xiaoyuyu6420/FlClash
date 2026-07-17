@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:isolate';
 
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/core/event.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -33,8 +34,10 @@ class Service {
         case 'event':
           final data = call.arguments as String? ?? '';
           final result = ActionResult.fromJson(json.decode(data));
-          for (final listener in _listeners) {
-            listener.onServiceEvent(CoreEvent.fromJson(result.data));
+          for (final event in coreEventsFromData(result.data)) {
+            for (final listener in _listeners) {
+              listener.onServiceEvent(event);
+            }
           }
           break;
         case 'crash':

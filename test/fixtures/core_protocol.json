@@ -1,0 +1,32 @@
+{
+  "action": {
+    "id": "updateConfig#contract",
+    "method": "updateConfig",
+    "data": {
+      "mixed-port": 7890,
+      "allow-lan": true,
+      "ipv6": false,
+      "geo-auto-update": true,
+      "geo-update-interval": 24
+    }
+  },
+  "eventResult": {
+    "id": "",
+    "method": "message",
+    "data": [
+      {
+        "type": "loaded",
+        "data": "provider-a"
+      },
+      {
+        "type": "delay",
+        "data": {
+          "name": "proxy-a",
+          "url": "https://example.com",
+          "value": 42
+        }
+      }
+    ],
+    "code": 0
+  }
+}

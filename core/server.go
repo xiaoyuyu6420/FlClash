@@ -23,10 +23,10 @@ func (result ActionResult) send() {
 	send(data)
 }
 
-func sendMessage(message Message) {
+func sendMessageBatch(messages []Message) {
 	result := ActionResult{
 		Method: messageMethod,
-		Data:   message,
+		Data:   messages,
 	}
 	result.send()
 }

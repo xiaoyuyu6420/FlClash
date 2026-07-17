@@ -35,14 +35,9 @@ var (
 	logSubscriber     observable.Subscription[log.Event]
 )
 
-func handleInitClash(paramsString string) bool {
+func handleInitClash(params *InitParams) bool {
 	runLock.Lock()
 	defer runLock.Unlock()
-	var params = InitParams{}
-	err := json.Unmarshal([]byte(paramsString), &params)
-	if err != nil {
-		return false
-	}
 	version = params.Version
 	constant.SetHomeDir(params.HomeDir)
 	isInit = true
@@ -136,25 +131,23 @@ func handleGetProxies() ProxiesData {
 	}
 }
 
-func handleChangeProxy(data string, fn func(string string)) {
+func handleChangeProxy(params *ChangeProxyParams, fn func(string string)) {
 	runLock.Lock()
 	go func() {
 		defer runLock.Unlock()
-		var params = &ChangeProxyParams{}
-		err := json.Unmarshal([]byte(data), params)
-		if err != nil {
-			fn(err.Error())
-			return
-		}
-		groupName := *params.GroupName
-		proxyName := *params.ProxyName
+		groupName := params.GroupName
+		proxyName := params.ProxyName
 		proxies := tunnel.AllProxies()
 		group, ok := proxies[groupName]
 		if !ok {
 			fn("Not found group")
 			return
 		}
-		adapterProxy := group.(*adapter.Proxy)
+		adapterProxy, ok := group.(*adapter.Proxy)
+		if !ok {
+			fn("Group has invalid proxy type")
+			return
+		}
 		selector, ok := adapterProxy.ProxyAdapter.(outboundgroup.SelectAble)
 		if !ok {
 			fn("Group is not selectable")
@@ -163,11 +156,11 @@ func handleChangeProxy(data string, fn func(string string)) {
 		if proxyName == "" {
 			selector.ForceSet(proxyName)
 		} else {
-			err = selector.Set(proxyName)
-		}
-		if err != nil {
-			fn(err.Error())
-			return
+			err := selector.Set(proxyName)
+			if err != nil {
+				fn(err.Error())
+				return
+			}
 		}
 
 		fn("")
@@ -207,15 +200,9 @@ func handleResetTraffic() {
 	statistic.DefaultManager.ResetStatistic()
 }
 
-func handleAsyncTestDelay(paramsString string, fn func(string)) {
-	mBatch.Go(paramsString, func() (bool, error) {
-		var params = &TestDelayParams{}
-		err := json.Unmarshal([]byte(paramsString), params)
-		if err != nil {
-			fn("")
-			return false, nil
-		}
-
+func handleAsyncTestDelay(params *TestDelayParams, fn func(string)) {
+	batchKey := params.ProxyName + "\x00" + params.TestUrl
+	mBatch.Go(batchKey, func() (bool, error) {
 		expectedStatus, err := utils.NewUnsignedRanges[uint16]("")
 		if err != nil {
 			fn("")
@@ -471,12 +458,7 @@ func handleCrash() {
 	panic("handle invoke crash")
 }
 
-func handleUpdateConfig(bytes []byte) string {
-	var params = &UpdateParams{}
-	err := json.Unmarshal(bytes, params)
-	if err != nil {
-		return err.Error()
-	}
+func handleUpdateConfig(params *UpdateParams) string {
 	updateConfig(params)
 	return ""
 }
@@ -508,18 +490,11 @@ func handleDelFile(path string, result ActionResult) {
 	}()
 }
 
-func handleSetupConfig(bytes []byte) string {
+func handleSetupConfig(params *SetupParams) string {
 	if !isInit {
 		return "not initialized"
 	}
-	var params = defaultSetupParams()
-	err := UnmarshalJson(bytes, params)
-	if err != nil {
-		logError("unmarshalRawConfig error %v", err)
-		_ = applyConfig(defaultSetupParams())
-		return err.Error()
-	}
-	err = applyConfig(params)
+	err := applyConfig(params)
 	if err != nil {
 		return err.Error()
 	}

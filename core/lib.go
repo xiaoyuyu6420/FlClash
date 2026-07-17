@@ -173,8 +173,11 @@ func (result ActionResult) send() {
 func nextHandle(action *Action, result ActionResult) bool {
 	switch action.Method {
 	case updateDnsMethod:
-		data := action.Data.(string)
-		handleUpdateDns(data)
+		value := ""
+		if !decodeActionData(action, result, &value) {
+			return true
+		}
+		handleUpdateDns(value)
 		result.success(true)
 		return true
 	}
@@ -215,12 +218,18 @@ func quickSetup(callback unsafe.Pointer, initParamsChar *C.char, setupParamsChar
 		defer releaseObject(callback)
 		initParamsString := takeCString(initParamsChar)
 		setupParamsString := takeCString(setupParamsChar)
-		if !handleInitClash(initParamsString) {
+		initParams := InitParams{}
+		if err := json.Unmarshal([]byte(initParamsString), &initParams); err != nil || !handleInitClash(&initParams) {
 			invokeResult(callback, "init failed")
 			return
 		}
 		isRunning = true
-		message := handleSetupConfig([]byte(setupParamsString))
+		setupParams := defaultSetupParams()
+		if err := UnmarshalJson([]byte(setupParamsString), setupParams); err != nil {
+			invokeResult(callback, err.Error())
+			return
+		}
+		message := handleSetupConfig(setupParams)
 		invokeResult(callback, message)
 	}()
 }
@@ -243,14 +252,14 @@ func getTraffic(onlyStatisticsProxy bool) *C.char {
 	return C.CString(handleGetTraffic(onlyStatisticsProxy))
 }
 
-func sendMessage(message Message) {
+func sendMessageBatch(messages []Message) {
 	if eventListener == nil {
 		return
 	}
 	result := ActionResult{
 		Method:   messageMethod,
 		callback: eventListener,
-		Data:     message,
+		Data:     messages,
 	}
 	result.send()
 }
