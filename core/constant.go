@@ -58,6 +58,11 @@ type TestDelayParams struct {
 	Timeout   int64  `json:"timeout"`
 }
 
+type Traffic struct {
+	Up   int64 `json:"up"`
+	Down int64 `json:"down"`
+}
+
 type ExternalProvider struct {
 	Name             string                     `json:"name"`
 	Type             string                     `json:"type"`

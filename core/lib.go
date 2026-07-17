@@ -242,12 +242,21 @@ func setEventListener(listener unsafe.Pointer) {
 
 //export getTotalTraffic
 func getTotalTraffic(onlyStatisticsProxy bool) *C.char {
-	return C.CString(handleGetTotalTraffic(onlyStatisticsProxy))
+	return C.CString(marshalResult(handleGetTotalTraffic(onlyStatisticsProxy)))
 }
 
 //export getTraffic
 func getTraffic(onlyStatisticsProxy bool) *C.char {
-	return C.CString(handleGetTraffic(onlyStatisticsProxy))
+	return C.CString(marshalResult(handleGetTraffic(onlyStatisticsProxy)))
+}
+
+func marshalResult(value any) string {
+	data, err := json.Marshal(value)
+	if err != nil {
+		logError("Result marshal error: %v", err)
+		return ""
+	}
+	return string(data)
 }
 
 func sendMessageBatch(messages []Message) {

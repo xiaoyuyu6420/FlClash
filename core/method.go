@@ -164,7 +164,7 @@ func handleMethodCall(call *MethodCall, response MethodResponse) {
 		if !decodeMethodArguments(call, response, &params) {
 			return
 		}
-		handleAsyncTestDelay(&params, func(value string) {
+		handleAsyncTestDelay(&params, func(value *Delay) {
 			response.success(value)
 		})
 		return
@@ -258,7 +258,7 @@ func handleMethodCall(call *MethodCall, response MethodResponse) {
 		})
 		return
 	case getMemoryMethod:
-		handleGetMemory(func(value string) {
+		handleGetMemory(func(value uint64) {
 			response.success(value)
 		})
 		return

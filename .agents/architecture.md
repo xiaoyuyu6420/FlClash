@@ -72,6 +72,8 @@ Each manager in `lib/manager/` handles a specific platform concern. Desktop-only
 `lib/core/controller.dart` (`CoreController`) is a singleton facade over `CoreHandlerInterface`. Public methods delegate to the platform-specific interface, either Android FFI or desktop socket. It has an `@visibleForTesting` constructor and `resetInstance()` for test injection.
 
 The shared core protocol uses `CoreMethodCall(method, arguments)` in both directions and `CoreMethodResponse(result, error)` for replies. Desktop calls include an `id` for concurrent request correlation; Android carries the same JSON envelope through its service `MethodChannel` and JNI bridge.
+The envelope is the only JSON serialization layer: keep `arguments`, `result`, and event data as structured JSON values instead
+of embedding pre-encoded JSON strings. Plain domain strings, such as country codes or provider file contents, remain strings.
 
 Business logic lives in Riverpod notifier classes in `lib/providers/action.dart`:
 

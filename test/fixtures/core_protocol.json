@@ -31,6 +31,13 @@
     "id": "updateConfig#contract",
     "result": ""
   },
+  "structuredResponse": {
+    "id": "getTraffic#contract",
+    "result": {
+      "up": 12,
+      "down": 34
+    }
+  },
   "errorResponse": {
     "id": "getConfig#contract",
     "result": null,

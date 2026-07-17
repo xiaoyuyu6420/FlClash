@@ -3,7 +3,6 @@ package main
 import (
 	"cmp"
 	"context"
-	"encoding/json"
 	"github.com/metacubex/mihomo/adapter"
 	"github.com/metacubex/mihomo/adapter/outboundgroup"
 	"github.com/metacubex/mihomo/common/observable"
@@ -25,7 +24,6 @@ import (
 	"os"
 	"runtime"
 	"runtime/debug"
-	"strconv"
 	"time"
 )
 
@@ -168,44 +166,42 @@ func handleChangeProxy(params *ChangeProxyParams, fn func(string string)) {
 	}()
 }
 
-func handleGetTraffic(onlyStatisticsProxy bool) string {
+func handleGetTraffic(onlyStatisticsProxy bool) Traffic {
 	up, down := statistic.DefaultManager.NowTraffic(onlyStatisticsProxy)
-	traffic := map[string]int64{
-		"up":   up,
-		"down": down,
+	return Traffic{
+		Up:   up,
+		Down: down,
 	}
-	data, err := json.Marshal(traffic)
-	if err != nil {
-		logError("Error: %s", err)
-		return ""
-	}
-	return string(data)
 }
 
-func handleGetTotalTraffic(onlyStatisticsProxy bool) string {
+func handleGetTotalTraffic(onlyStatisticsProxy bool) Traffic {
 	up, down := statistic.DefaultManager.TotalTraffic(onlyStatisticsProxy)
-	traffic := map[string]int64{
-		"up":   up,
-		"down": down,
+	return Traffic{
+		Up:   up,
+		Down: down,
 	}
-	data, err := json.Marshal(traffic)
-	if err != nil {
-		logError("Error: %s", err)
-		return ""
-	}
-	return string(data)
 }
 
 func handleResetTraffic() {
 	statistic.DefaultManager.ResetStatistic()
 }
 
-func handleAsyncTestDelay(params *TestDelayParams, fn func(string)) {
+func handleAsyncTestDelay(params *TestDelayParams, fn func(*Delay)) {
 	batchKey := params.ProxyName + "\x00" + params.TestUrl
 	mBatch.Go(batchKey, func() (bool, error) {
+		testUrl := params.TestUrl
+		if testUrl == "" {
+			testUrl = constant.DefaultTestURL
+		}
+		delayData := &Delay{
+			Name:  params.ProxyName,
+			Url:   testUrl,
+			Value: -1,
+		}
+
 		expectedStatus, err := utils.NewUnsignedRanges[uint16]("")
 		if err != nil {
-			fn("")
+			fn(delayData)
 			return false, nil
 		}
 
@@ -215,48 +211,26 @@ func handleAsyncTestDelay(params *TestDelayParams, fn func(string)) {
 		proxies := tunnel.AllProxies()
 		proxy := proxies[params.ProxyName]
 
-		delayData := &Delay{
-			Name: params.ProxyName,
-		}
-
 		if proxy == nil {
-			delayData.Value = -1
-			data, _ := json.Marshal(delayData)
-			fn(string(data))
+			fn(delayData)
 			return false, nil
 		}
-
-		testUrl := constant.DefaultTestURL
-
-		if params.TestUrl != "" {
-			testUrl = params.TestUrl
-		}
-		delayData.Url = testUrl
 		delay, err := proxy.URLTest(ctx, testUrl, expectedStatus)
 		if err != nil || delay == 0 {
-			delayData.Value = -1
-			data, _ := json.Marshal(delayData)
-			fn(string(data))
+			fn(delayData)
 			return false, nil
 		}
 
 		delayData.Value = int32(delay)
-		data, _ := json.Marshal(delayData)
-		fn(string(data))
+		fn(delayData)
 		return false, nil
 	})
 }
 
-func handleGetConnections() string {
+func handleGetConnections() *statistic.Snapshot {
 	runLock.Lock()
 	defer runLock.Unlock()
-	snapshot := statistic.DefaultManager.Snapshot()
-	data, err := json.Marshal(snapshot)
-	if err != nil {
-		logError("Error: %s", err)
-		return ""
-	}
-	return string(data)
+	return statistic.DefaultManager.Snapshot()
 }
 
 func handleCloseConnections() bool {
@@ -294,7 +268,7 @@ func handleCloseConnection(connectionId string) bool {
 	return true
 }
 
-func handleGetExternalProviders() string {
+func handleGetExternalProviders() []ExternalProvider {
 	runLock.Lock()
 	defer runLock.Unlock()
 	externalProviders = getExternalProvidersRaw()
@@ -309,29 +283,21 @@ func handleGetExternalProviders() string {
 	slices.SortFunc(eps, func(a, b ExternalProvider) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
-	data, err := json.Marshal(eps)
-	if err != nil {
-		return ""
-	}
-	return string(data)
+	return eps
 }
 
-func handleGetExternalProvider(externalProviderName string) string {
+func handleGetExternalProvider(externalProviderName string) *ExternalProvider {
 	runLock.Lock()
 	defer runLock.Unlock()
 	externalProvider, exist := externalProviders[externalProviderName]
 	if !exist {
-		return ""
+		return nil
 	}
 	e, err := toExternalProvider(externalProvider)
 	if err != nil {
-		return ""
+		return nil
 	}
-	data, err := json.Marshal(e)
-	if err != nil {
-		return ""
-	}
-	return string(data)
+	return e
 }
 
 func handleUpdateGeoData(geoType string) {
@@ -436,9 +402,9 @@ func handleGetCountryCode(ip string, fn func(value string)) {
 	}()
 }
 
-func handleGetMemory(fn func(value string)) {
+func handleGetMemory(fn func(value uint64)) {
 	go func() {
-		fn(strconv.FormatUint(statistic.DefaultManager.Memory(), 10))
+		fn(statistic.DefaultManager.Memory())
 	}()
 }
 

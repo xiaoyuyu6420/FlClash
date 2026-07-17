@@ -26,10 +26,53 @@ class _RecordingCoreHandler extends CoreHandlerInterface {
     Duration? timeout,
   }) async {
     calls[method] = arguments;
-    return switch (method) {
+    final result = switch (method) {
       CoreMethod.initClash => true as T,
-      _ => '' as T,
+      CoreMethod.getTraffic ||
+      CoreMethod.getTotalTraffic => {'up': 12, 'down': 34},
+      CoreMethod.asyncTestDelay => {
+        'name': 'DIRECT',
+        'url': 'https://example.com',
+        'value': 42,
+      },
+      CoreMethod.getConnections => {
+        'connections': [
+          {
+            'id': 'connection-1',
+            'metadata': {'network': 'tcp'},
+            'upload': 0,
+            'download': 0,
+            'start': '2024-01-01',
+            'chains': ['DIRECT'],
+            'rule': 'DIRECT',
+            'rulePayload': '',
+          },
+        ],
+      },
+      CoreMethod.getExternalProviders => [
+        {
+          'name': 'provider-1',
+          'type': 'Proxy',
+          'count': 1,
+          'vehicle-type': 'HTTP',
+          'update-at': '2024-01-01T00:00:00.000Z',
+        },
+      ],
+      CoreMethod.getExternalProvider => {
+        'name': 'provider-1',
+        'type': 'Proxy',
+        'count': 1,
+        'vehicle-type': 'HTTP',
+        'update-at': '2024-01-01T00:00:00.000Z',
+      },
+      CoreMethod.getConfig => {
+        'mode': 'rule',
+        'rule': ['MATCH,DIRECT'],
+      },
+      CoreMethod.getMemory => 2048,
+      _ => '',
     };
+    return result as T;
   }
 
   @override
@@ -37,6 +80,46 @@ class _RecordingCoreHandler extends CoreHandlerInterface {
 
   @override
   Future<bool> shutdown(bool isUser) async => true;
+}
+
+class _FailingConfigCoreHandler extends _RecordingCoreHandler {
+  @override
+  Future<T?> invokeMethod<T>({
+    required CoreMethod method,
+    Object? arguments,
+    Duration? timeout,
+  }) async {
+    if (method == CoreMethod.getConfig) {
+      throw const CoreMethodException(
+        code: 'core_error',
+        message: 'config not found',
+        details: {'path': '/missing.yaml'},
+      );
+    }
+    return super.invokeMethod(
+      method: method,
+      arguments: arguments,
+      timeout: timeout,
+    );
+  }
+}
+
+class _EmptyConfigCoreHandler extends _RecordingCoreHandler {
+  @override
+  Future<T?> invokeMethod<T>({
+    required CoreMethod method,
+    Object? arguments,
+    Duration? timeout,
+  }) async {
+    if (method == CoreMethod.getConfig) {
+      return null;
+    }
+    return super.invokeMethod(
+      method: method,
+      arguments: arguments,
+      timeout: timeout,
+    );
+  }
 }
 
 void main() {
@@ -100,6 +183,61 @@ void main() {
     expect(legacy.single.data, 'provider-b');
   });
 
+  test('core interface converts structured method results', () async {
+    final handler = _RecordingCoreHandler();
+
+    expect(await handler.getTraffic(false), const Traffic(up: 12, down: 34));
+    expect(
+      await handler.getTotalTraffic(false),
+      const Traffic(up: 12, down: 34),
+    );
+    expect(
+      await handler.asyncTestDelay('https://example.com', 'DIRECT'),
+      const Delay(name: 'DIRECT', url: 'https://example.com', value: 42),
+    );
+    expect((await handler.getConnections()).single.id, 'connection-1');
+    expect((await handler.getExternalProviders()).single.name, 'provider-1');
+    expect(
+      (await handler.getExternalProvider('provider-1'))?.name,
+      'provider-1',
+    );
+    expect(await handler.getConfig('/config.yaml'), {
+      'mode': 'rule',
+      'rule': ['MATCH,DIRECT'],
+    });
+    expect(await handler.getMemory(), 2048);
+  });
+
+  test('getConfig preserves structured core errors', () async {
+    final handler = _FailingConfigCoreHandler();
+
+    await expectLater(
+      handler.getConfig('/missing.yaml'),
+      throwsA(
+        isA<CoreMethodException>()
+            .having((error) => error.code, 'code', 'core_error')
+            .having((error) => error.details, 'details', {
+              'path': '/missing.yaml',
+            }),
+      ),
+    );
+  });
+
+  test('getConfig rejects empty transport results', () async {
+    final handler = _EmptyConfigCoreHandler();
+
+    await expectLater(
+      handler.getConfig('/config.yaml'),
+      throwsA(
+        isA<CoreMethodException>().having(
+          (error) => error.code,
+          'code',
+          'empty_result',
+        ),
+      ),
+    );
+  });
+
   test('method response separates result and structured errors', () async {
     final fixture =
         json.decode(
@@ -109,12 +247,18 @@ void main() {
     final success = CoreMethodResponse.fromJson(
       Map<String, Object?>.from(fixture['successResponse'] as Map),
     );
+    final structured = CoreMethodResponse.fromJson(
+      Map<String, Object?>.from(fixture['structuredResponse'] as Map),
+    );
     final failure = CoreMethodResponse.fromJson(
       Map<String, Object?>.from(fixture['errorResponse'] as Map),
     );
 
     expect(success.unwrap<String>(), '');
     expect(success.toJson(), containsPair('result', ''));
+    expect(structured.result, isA<Map>());
+    expect(structured.result, isNot(isA<String>()));
+    expect(structured.unwrap<Map<String, dynamic>>()?['up'], 12);
     expect(
       () => failure.unwrap<Object?>(),
       throwsA(

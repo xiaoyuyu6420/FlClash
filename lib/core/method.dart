@@ -108,7 +108,7 @@ class CoreMethodResponse {
     };
   }
 
-  T unwrap<T>() {
+  T? unwrap<T>() {
     final error = this.error;
     if (error != null) {
       throw CoreMethodException(
@@ -117,7 +117,7 @@ class CoreMethodResponse {
         details: error.details,
       );
     }
-    return result as T;
+    return result as T?;
   }
 }
 
