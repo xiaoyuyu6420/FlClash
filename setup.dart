@@ -164,7 +164,7 @@ Future<int> _package(
     'git',
     'https://github.com/chen08209/flutter_distributor.git',
     '--git-ref',
-    'FlClash',
+    'ProxyZen',
     '--git-path',
     'packages/flutter_distributor',
   ]);

@@ -45,7 +45,7 @@ class _EulaContent extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('欢迎使用 MyVPN',
+            Text('欢迎使用 ProxyZen',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             SizedBox(height: 12),
             Text(
