@@ -74,4 +74,6 @@ devtools_options.yaml
 
 # FVM Version Cache
 .fvm/
-.fvmrc
+.fvmrc# Agent 二进制由 CI 动态复制，不纳入版本控制
+assets/agent/*.exe
+assets/agent/proxy-agent-*

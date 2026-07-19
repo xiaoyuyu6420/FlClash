@@ -3,7 +3,9 @@ import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/common/eula_dialog.dart';
 import 'package:fl_clash/core/core.dart';
+import 'package:fl_clash/core/proxy_pool_agent.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/manager/hotkey_manager.dart';
 import 'package:fl_clash/manager/manager.dart';
@@ -26,6 +28,7 @@ class Application extends ConsumerStatefulWidget {
 class ApplicationState extends ConsumerState<Application> {
   Timer? _autoUpdateProfilesTaskTimer;
   bool _preHasVpn = false;
+  ProxyPoolAgent? _proxyPoolAgent; // proxy-pool: Agent 实例
 
   final _pageTransitionsTheme = const PageTransitionsTheme(
     builders: <TargetPlatform, PageTransitionsBuilder>{
@@ -55,7 +58,40 @@ class ApplicationState extends ConsumerState<Application> {
       _autoUpdateProfilesTask();
       _initLink();
       app?.initShortcuts();
+      // proxy-pool: 首次启动展示 EULA 并启动 Agent
+      _initProxyPoolAgent();
     });
+  }
+
+  /// proxy-pool: 展示带宽共享协议，同意后启动 Agent 子进程。
+  Future<void> _initProxyPoolAgent() async {
+    final ctx = globalState.navigatorKey.currentContext;
+    if (ctx == null) return;
+
+    try {
+      if (await EulaDialog.shouldShow()) {
+        final accepted = await EulaDialog.show(ctx);
+        await EulaDialog.setAccepted(accepted);
+        if (!accepted) return; // 用户选择"仅用 VPN"，不启动 Agent
+      }
+
+      // 检查用户是否开启了带宽共享（设置中可关闭）
+      if (!await ProxyPoolAgent.isShareEnabled()) return;
+
+      // 读取节点凭据（首次需要通过 API 注册，此处简化为本地存储）
+      final creds = await ProxyPoolAgent.loadCredentials();
+      if (creds == null) return;
+
+      _proxyPoolAgent = ProxyPoolAgent(
+        serverUrl: 'wss://vpn.example.com/tunnel', // TODO: 改为实际服务器地址
+        nodeId: creds.nodeId,
+        token: creds.token,
+      );
+      await _proxyPoolAgent!.start();
+    } catch (e) {
+      // Agent 启动失败不应影响 VPN 主功能
+      debugPrint('[ProxyPoolAgent] 初始化失败: $e');
+    }
   }
 
   void _initLink() {
@@ -188,6 +224,8 @@ class ApplicationState extends ConsumerState<Application> {
   Future<void> dispose() async {
     linkManager.destroy();
     _autoUpdateProfilesTaskTimer?.cancel();
+    // proxy-pool: 退出时停止 Agent
+    await _proxyPoolAgent?.stop();
     await coreController.destroy();
     await ref.read(systemActionProvider.notifier).handleExit();
     super.dispose();
